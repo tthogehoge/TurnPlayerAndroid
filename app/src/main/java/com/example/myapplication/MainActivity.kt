@@ -5,12 +5,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.widget.Button
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,18 +33,30 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import java.io.File
+import java.util.Timer
+import java.util.TimerTask
 import kotlin.io.path.Path
 import kotlin.io.path.extension
 
 class MainActivity : ComponentActivity() {
-    private lateinit var binding: ActivityMainBinding;
+    private lateinit var binding: ActivityMainBinding
     private val PREFERENCE_KEY = "PREF_KEY"
     private val SAVE_PATH = "path"
+    private val SAVE_FILE = "file"
+    private val SAVE_POS = "pos"
     private val PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 100
     private val PERMISSIONS_REQUEST_READ_MEDIA_AUDIO = 101
+    private var mediaPlayer : MediaPlayer? = null
+    private lateinit var radioList: ArrayList<RadioData>
+    private var currentPath = ""
+    private lateinit var timer: Timer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
+        radioList = ArrayList()
+        mediaPlayer = MediaPlayer()
+        mediaPlayer?.setOnCompletionListener { nextPlay() }
+        timer = Timer()
 
         // 親クラス
         super.onCreate(savedInstanceState)
@@ -114,18 +128,92 @@ class MainActivity : ComponentActivity() {
         }
 
         // button
-        binding.button.setOnClickListener {
+        binding.buttonDir.setOnClickListener {
             binding.textView.text = getString(R.string.test_text)
             getContent.launch(intent)
         }
+        binding.buttonPlay.setOnClickListener {
+            mediaPlayer?.let{
+                if(it.isPlaying){
+                    it.pause()
+                    saveString(SAVE_POS, it.currentPosition.toString())
+                }else{
+                    it.start()
+                }
+            }
+        }
+        binding.buttonStop.setOnClickListener {
+            mediaPlayer?.let{
+                saveString(SAVE_POS, it.currentPosition.toString())
+                it.stop()
+            }
+        }
 
+        val task = object : TimerTask() {
+            override fun run() {
+                mediaPlayer?.let{
+                    if(it.isPlaying){
+                        binding.seekBar.progress = it.currentPosition
+                    }
+                }
+            }
+        }
+        timer.scheduleAtFixedRate(task, 1000L, 1000L)
+
+        binding.seekBar.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+                    if(fromUser){
+                        mediaPlayer?.seekTo(progress)
+                    }
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                }
+            }
+        )
+    }
+
+    override fun onPause() {
+        mediaPlayer?.let{
+            if(it.isPlaying){
+                saveString(SAVE_POS, it.currentPosition.toString())
+            }
+        }
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        mediaPlayer?.let{
+            if(it.isPlaying){
+                saveString(SAVE_POS, it.currentPosition.toString())
+                it.stop()
+            }
+            it.release()
+            mediaPlayer = null
+        }
+        super.onDestroy()
     }
 
     private fun loadDir() {
         val dir = loadString(SAVE_PATH, "")
         binding.textView.text = dir;
         if(dir!=""){
-            listDir(dir)
+            val list = listDir(dir)
+            val saveFile = loadString(SAVE_FILE, "")
+            val savePos = loadString(SAVE_POS, "0").toInt()
+            list.forEach {
+                if( it.documentFile.uri.path == saveFile ){
+                    radioPlay(it, savePos)
+                }
+            }
         }
     }
 
@@ -186,9 +274,50 @@ class MainActivity : ComponentActivity() {
          */
         val dir = DocumentFile.fromTreeUri(this, uri)
         val list = dirFiles(dir!!)
-        binding.recyclerview.adapter = MyRecyclerViewAdapter(list)
+        val adapter = MyRecyclerViewAdapter(list)
+        adapter.setOnCellClickListener(
+            object: MyRecyclerViewAdapter.OnCellClickListener {
+                override fun onItemClick(radioData: RadioData) {
+                    radioPlay(radioData, 0)
+                }
+            }
+        )
+        binding.recyclerview.adapter = adapter
         binding.recyclerview.layoutManager = LinearLayoutManager(this)
+        radioList = list
         return list
+    }
+
+    private fun radioPlay(radioData: RadioData, pos:Int) {
+        mediaPlayer?.let{
+            if(it.isPlaying){
+                it.stop()
+                it.reset()
+            }
+            it.setDataSource(this, radioData.documentFile.uri)
+            it.prepare()
+            binding.seekBar.max = it.duration
+            currentPath = radioData.documentFile.uri.path.toString()
+            saveString(SAVE_FILE, currentPath)
+            if(pos==0){
+                binding.seekBar.progress = 0
+                saveString(SAVE_POS, pos.toString())
+            }else{
+                it.seekTo(pos)
+            }
+            it.start()
+        }
+    }
+
+    private fun nextPlay() {
+        val ret = radioList.filter{it.documentFile.uri.path.toString()==currentPath}
+        if(ret.isNotEmpty()){
+            var idx = radioList.indexOf(ret[0])
+            idx = idx + 1
+            if(radioList.size>idx){
+                radioPlay(radioList[idx], 0)
+            }
+        }
     }
 }
 
