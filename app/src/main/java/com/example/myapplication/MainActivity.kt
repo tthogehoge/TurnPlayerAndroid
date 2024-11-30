@@ -152,10 +152,19 @@ class MainActivity : ComponentActivity() {
         }
 
         val task = object : TimerTask() {
+            @SuppressLint("DefaultLocale")
             override fun run() {
                 mediaPlayer?.let{
                     if(it.isPlaying){
-                        binding.seekBar.progress = it.currentPosition
+                        val pos = it.currentPosition
+                        var sec = pos / 1000
+                        var min = sec / 60
+                        sec %= 60
+                        val hour = min / 60
+                        min %= 60
+                        val posStr = String.format("%02d:%02d:%02d", hour, min, sec)
+                        binding.seekBar.progress = pos
+                        binding.textPos.text = posStr
                     }
                 }
             }
