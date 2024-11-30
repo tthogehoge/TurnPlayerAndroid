@@ -137,8 +137,10 @@ class MainActivity : ComponentActivity() {
                 if(it.isPlaying){
                     it.pause()
                     saveString(SAVE_POS, it.currentPosition.toString())
+                    binding.buttonPlay.setText(R.string.button_play)
                 }else{
                     it.start()
+                    binding.buttonPlay.setText(R.string.button_pause)
                 }
             }
         }
@@ -211,7 +213,10 @@ class MainActivity : ComponentActivity() {
             val savePos = loadString(SAVE_POS, "0").toInt()
             list.forEach {
                 if( it.documentFile.uri.path == saveFile ){
+                    val idx = list.indexOf(it)
                     radioPlay(it, savePos)
+                    val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                    adapter.changeSelection(idx)
                 }
             }
         }
@@ -274,6 +279,20 @@ class MainActivity : ComponentActivity() {
          */
         val dir = DocumentFile.fromTreeUri(this, uri)
         val list = dirFiles(dir!!)
+        val regex = "(\\d{4}\\d{2}\\d{2}\\d{2}\\d{2}\\d{2})".toRegex()
+        list.sortBy{
+            val txt = it.documentFile.uri.path
+            var ret = ""
+            if(txt!=null){
+                val result:MatchResult? = regex.find(txt)
+                if(result!=null) {
+                    if(result.groupValues.isNotEmpty()){
+                        ret = result.groupValues[0]
+                    }
+                }
+            }
+            ret
+        }
         val adapter = MyRecyclerViewAdapter(list)
         adapter.setOnCellClickListener(
             object: MyRecyclerViewAdapter.OnCellClickListener {
@@ -288,7 +307,21 @@ class MainActivity : ComponentActivity() {
         return list
     }
 
+    private fun setCurrent(radioData:RadioData){
+        var idx = -1
+        for((i,elem) in radioList.withIndex()){
+            if(radioData.documentFile.uri.path.toString() == elem.documentFile.uri.path.toString()){
+                idx = i
+                break
+            }
+        }
+        if(idx>=0){
+            binding.recyclerview.smoothScrollToPosition(idx)
+        }
+    }
+
     private fun radioPlay(radioData: RadioData, pos:Int) {
+        setCurrent(radioData)
         mediaPlayer?.let{
             if(it.isPlaying){
                 it.stop()
@@ -306,16 +339,28 @@ class MainActivity : ComponentActivity() {
                 it.seekTo(pos)
             }
             it.start()
+            binding.buttonPlay.setText(R.string.button_pause)
         }
     }
 
     private fun nextPlay() {
-        val ret = radioList.filter{it.documentFile.uri.path.toString()==currentPath}
-        if(ret.isNotEmpty()){
-            var idx = radioList.indexOf(ret[0])
+        mediaPlayer?.let{
+            it.stop()
+            it.reset()
+        }
+        var idx=-1
+        for((i,elem)in radioList.withIndex()){
+            if( elem.documentFile.uri.path.toString()==currentPath ){
+                idx = i;
+                break
+            }
+        }
+        if(idx!=-1){
             idx = idx + 1
             if(radioList.size>idx){
                 radioPlay(radioList[idx], 0)
+                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                adapter.changeSelection(idx)
             }
         }
     }
