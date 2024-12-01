@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.documentfile.provider.DocumentFile
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -41,11 +42,10 @@ import kotlin.io.path.extension
 class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private val PREFERENCE_KEY = "PREF_KEY"
-    private val SAVE_PATH = "path"
+    private val SAVE_DIRECTORY = "directory"
     private val SAVE_FILE = "file"
     private val SAVE_POS = "pos"
     private val PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 100
-    private val PERMISSIONS_REQUEST_READ_MEDIA_AUDIO = 101
     private var mediaPlayer : MediaPlayer? = null
     private lateinit var radioList: ArrayList<RadioData>
     private var currentPath = ""
@@ -94,42 +94,15 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // directory picker activity
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-        }
-
-        // directory picker activity call
         val getContent = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
-                result: ActivityResult ->
-            if (result.resultCode == Activity.RESULT_OK){
-                val resultData = result.data
-                if(resultData!=null){
-                    val uri: Uri? = resultData.data
-                    val dir = uri.toString()
-
-                    // show uri
-                    binding.textView.text = dir
-                    // save path
-                    saveString(SAVE_PATH, dir)
-
-                    val contentResolver = applicationContext.contentResolver
-                    val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    // Check for the freshest data.
-                    if (uri != null) {
-                        contentResolver.takePersistableUriPermission(uri, takeFlags)
-                    }
-                    listDir(dir)
-                }
-            }
+            loadDir()
         }
 
         // button
-        binding.buttonDir.setOnClickListener {
-            binding.textView.text = getString(R.string.test_text)
+        binding.buttonSetting.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
             getContent.launch(intent)
         }
         binding.buttonPlay.setOnClickListener {
@@ -214,8 +187,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadDir() {
-        val dir = loadString(SAVE_PATH, "")
-        binding.textView.text = dir;
+        val dir = loadSetting(SAVE_DIRECTORY, "")
         if(dir!=""){
             val list = listDir(dir)
             val saveFile = loadString(SAVE_FILE, "")
@@ -252,6 +224,20 @@ class MainActivity : ComponentActivity() {
     // load
     private fun loadString(key: String, defValue: String): String {
         val sharedPref = getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE)
+        var value:String? = null
+        try {
+            value = sharedPref.getString(key,defValue)
+        } catch(_: Exception) {
+        }
+        if(value != null){
+            return value
+        }
+        return defValue
+    }
+
+    // loadSetting
+    private fun loadSetting(key: String, defValue: String): String {
+        val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
         var value:String? = null
         try {
             value = sharedPref.getString(key,defValue)
