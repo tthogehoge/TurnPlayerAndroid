@@ -84,27 +84,20 @@ class MainActivity : ComponentActivity() {
             insets
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                // 許可されている
-                loadDir()
-            } else {
-                // 許可されていないので許可ダイアログを表示する
-                requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE), PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE)
-            }
-        }
-
+        // 設定終了時
         val getContent = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
             loadDir()
         }
 
-        // button
+        // button SettingActivity
         binding.buttonSetting.setOnClickListener {
             val intent = Intent(this, SettingsActivity::class.java)
             getContent.launch(intent)
         }
+
+        // button Play
         binding.buttonPlay.setOnClickListener {
             mediaPlayer?.let{
                 if(it.isPlaying){
@@ -117,6 +110,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // button Stop
         binding.buttonStop.setOnClickListener {
             mediaPlayer?.let{
                 saveString(SAVE_POS, it.currentPosition.toString())
@@ -124,6 +119,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // timer
         val task = object : TimerTask() {
             @SuppressLint("DefaultLocale")
             override fun run() {
@@ -144,6 +140,7 @@ class MainActivity : ComponentActivity() {
         }
         timer.scheduleAtFixedRate(task, 1000L, 1000L)
 
+        // seekbar
         binding.seekBar.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(
@@ -163,6 +160,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         )
+
+        // 設定ロード
+        loadDir()
     }
 
     override fun onPause() {
