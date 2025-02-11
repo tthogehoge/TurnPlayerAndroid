@@ -33,18 +33,19 @@ const val PREFERENCE_KEY = "PREF_KEY"
 const val SAVE_DIRECTORY = "directory"
 const val SAVE_URL = "url"
 const val SAVE_FILE = "file"
+const val SAVE_TIME = "time"
 const val SAVE_POS = "pos"
 
 class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private var mediaPlayer : MediaPlayer? = null
-    private lateinit var radioList: ArrayList<RadioData>
+    private lateinit var radioDataList: ArrayList<RadioData>
     private var currentPath = ""
     private lateinit var timer: Timer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
-        radioList = ArrayList()
+        radioDataList = ArrayList()
         mediaPlayer = MediaPlayer()
         mediaPlayer?.setOnCompletionListener { nextPlay() }
         timer = Timer()
@@ -184,10 +185,10 @@ class MainActivity : ComponentActivity() {
                     fetchRssFeed(url)
                 }
                 setPodcasts(podcasts)
-                resume()
             }catch (e:Exception){
-                resume()
+                e.printStackTrace()
             }
+            resume()
         }
 
     }
@@ -228,13 +229,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setPodcasts(podcasts:List<PodcastEpisode>){
-        val list = radioList
+        val list = radioDataList
         for (item in podcasts) {
-            val radio = RadioData(item)
-            list.add(radio)
+            val radioData = RadioData(item)
+            list.add(radioData)
         }
         updateList(list)
-        resume()
     }
 
     private fun loadDir() {
@@ -321,35 +321,52 @@ class MainActivity : ComponentActivity() {
         )
         binding.recyclerview.adapter = adapter
         binding.recyclerview.layoutManager = LinearLayoutManager(this)
-        radioList = list
+        radioDataList = list
+        resumeFile()
+    }
 
+    // saveされたファイルを探して選択する
+    private fun resumeFile():Int{
+        var idx = -1
+        var idx2 = -1
+        val list = radioDataList
         val saveFile = loadString(SAVE_FILE, "")
+        val saveTime = loadString(SAVE_TIME, "0000/00/00 00:00:00")
+        val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
         list.forEach {
+            // SAVE_FILEが見つかったらそれ
             if( it.isSaveFile(saveFile) ){
-                val idx = list.indexOf(it)
-                val adp:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
-                adp.changeSelection(idx)
+                idx = list.indexOf(it)
+                adapter.changeSelection(idx)
+                return idx
+            }
+            // SAVE_FILEが見つからなかったらその次の日付のファイルにする
+            if( idx2==-1 && it.getTime() > saveTime ){
+                idx2 = list.indexOf(it)
             }
         }
+        if(idx2!=-1){
+            adapter.changeSelection(idx)
+        }
+        return idx2
     }
 
     private fun resume(){
-        val list = radioList
-        val saveFile = loadString(SAVE_FILE, "")
-        val savePos = loadString(SAVE_POS, "0").toInt()
-        list.forEach {
-            if( it.isSaveFile(saveFile) ){
-                val idx = list.indexOf(it)
-                radioPlay(it, savePos)
-                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
-                adapter.changeSelection(idx)
+        val idx = resumeFile()
+        if(idx!=-1){
+            val saveFile = loadString(SAVE_FILE, "")
+            var savePos = loadString(SAVE_POS, "0").toInt()
+            val radioData = radioDataList[idx]
+            if(radioData.getSaveFile()!=saveFile){
+                savePos = 0
             }
+            radioPlay(radioData, savePos)
         }
     }
 
     private fun setCurrent(radioData:RadioData){
         var idx = -1
-        for((i,elem) in radioList.withIndex()){
+        for((i,elem) in radioDataList.withIndex()){
             if(radioData.getSaveFile() == elem.getSaveFile()){
                 idx = i
                 break
@@ -379,6 +396,7 @@ class MainActivity : ComponentActivity() {
                 binding.seekBar.max = it.duration
                 currentPath = radioData.getSaveFile()
                 saveString(SAVE_FILE, currentPath)
+                saveString(SAVE_TIME, radioData.getTime())
                 if (pos == 0) {
                     binding.seekBar.progress = 0
                     saveString(SAVE_POS, pos.toString())
@@ -398,7 +416,7 @@ class MainActivity : ComponentActivity() {
             it.reset()
         }
         var idx=-1
-        for((i,elem)in radioList.withIndex()){
+        for((i,elem)in radioDataList.withIndex()){
             if( elem.getSaveFile()==currentPath ){
                 idx = i
                 break
@@ -406,8 +424,8 @@ class MainActivity : ComponentActivity() {
         }
         if(idx!=-1){
             idx += 1
-            if(radioList.size>idx){
-                radioPlay(radioList[idx], 0)
+            if(radioDataList.size>idx){
+                radioPlay(radioDataList[idx], 0)
                 val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
                 adapter.changeSelection(idx)
             }
