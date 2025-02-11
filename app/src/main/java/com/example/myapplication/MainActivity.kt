@@ -1,5 +1,7 @@
 package com.example.myapplication
 
+import PodcastEpisode
+import RssParser
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
@@ -29,10 +31,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import retrofit2.Retrofit
+import retrofit2.converter.simplexml.SimpleXmlConverterFactory
 import java.io.File
 import java.util.Timer
 import java.util.TimerTask
@@ -43,9 +53,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private val PREFERENCE_KEY = "PREF_KEY"
     private val SAVE_DIRECTORY = "directory"
+    private val SAVE_URL = "url"
     private val SAVE_FILE = "file"
     private val SAVE_POS = "pos"
-    private val PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 100
     private var mediaPlayer : MediaPlayer? = null
     private lateinit var radioList: ArrayList<RadioData>
     private var currentPath = ""
@@ -61,18 +71,6 @@ class MainActivity : ComponentActivity() {
         // 親クラス
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        /*
-        setContent {
-            MyApplicationTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
-        }
-        */
 
         // アクティビティ
         setContentView(binding.root)
@@ -88,7 +86,7 @@ class MainActivity : ComponentActivity() {
         val getContent = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
-            loadDir()
+            loadSetting()
         }
 
         // button SettingActivity
@@ -162,16 +160,7 @@ class MainActivity : ComponentActivity() {
         )
 
         // 設定ロード
-        loadDir()
-    }
-
-    override fun onPause() {
-        mediaPlayer?.let{
-            if(it.isPlaying){
-                saveString(SAVE_POS, it.currentPosition.toString())
-            }
-        }
-        super.onPause()
+        loadSetting()
     }
 
     override fun onDestroy() {
@@ -186,32 +175,92 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    override fun onPause() {
+        mediaPlayer?.let{
+            if(it.isPlaying){
+                saveString(SAVE_POS, it.currentPosition.toString())
+            }
+        }
+        super.onPause()
+    }
+
+    private fun loadSetting() {
+        loadDir()
+        val url = loadSetting(SAVE_URL, "")
+        if(url!=""){
+            fetchEpisodes(url)
+            // getUrl("http://abehiroshi.la.coocan.jp/menu.htm")
+            // https://feeds.megaphone.fm/TBS4550274867
+        }else{
+            resume()
+        }
+    }
+
+    private fun fetchEpisodes(url:String) {
+        lifecycleScope.launch {
+            try {
+                val episodes = withContext(Dispatchers.IO) {
+                    fetchRssFeed(url)
+                }
+                setEpisodes(episodes)
+                resume()
+            }catch (e:Exception){
+            }
+        }
+
+    }
+
+    // ネットワークリクエストの実装
+    private suspend fun fetchRssFeed(url:String) : List<PodcastEpisode> {
+        try {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(url)
+                //.url("https://feeds.megaphone.fm/TBS4550274867")
+                .build()
+
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
+
+            val rssContent = response.body()?.string() ?: ""
+            val parser = RssParser()
+            val episodes = parser.parse(rssContent)
+
+            /*
+            // パースした結果を使用
+            episodes.forEach { episode ->
+                println("Title: ${episode.title}")
+                println("Description: ${episode.description}")
+                println("Published: ${episode.pubDate}")
+                println("Duration: ${episode.duration}")
+                println("URL: ${episode.url}")
+                println("-------------------")
+            }
+             */
+            return episodes
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return mutableListOf<PodcastEpisode>()
+    }
+
+    private fun setEpisodes(episodes:List<PodcastEpisode>){
+        val list = radioList
+        for (item in episodes) {
+            val radio = RadioData(item)
+            list.add(radio)
+        }
+        updateList(list)
+        resume()
+    }
+
     private fun loadDir() {
         val dir = loadSetting(SAVE_DIRECTORY, "")
         if(dir!=""){
             val list = listDir(dir)
-            val saveFile = loadString(SAVE_FILE, "")
-            val savePos = loadString(SAVE_POS, "0").toInt()
-            list.forEach {
-                if( it.documentFile.uri.path == saveFile ){
-                    val idx = list.indexOf(it)
-                    radioPlay(it, savePos)
-                    val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
-                    adapter.changeSelection(idx)
-                }
-            }
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE -> {
-                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    loadDir()
-                }
-                return
-            }
+            updateList(list)
         }
     }
 
@@ -274,19 +323,12 @@ class MainActivity : ComponentActivity() {
          */
         val dir = DocumentFile.fromTreeUri(this, uri)
         val list = dirFiles(dir!!)
-        val regex = "(\\d{4}\\d{2}\\d{2}\\d{2}\\d{2}\\d{2})".toRegex()
+        return list
+    }
+
+    private fun updateList(list: ArrayList<RadioData>){
         list.sortBy{
-            val txt = it.documentFile.uri.path
-            var ret = ""
-            if(txt!=null){
-                val result:MatchResult? = regex.find(txt)
-                if(result!=null) {
-                    if(result.groupValues.isNotEmpty()){
-                        ret = result.groupValues[0]
-                    }
-                }
-            }
-            ret
+            it.time()
         }
         val adapter = MyRecyclerViewAdapter(list)
         adapter.setOnCellClickListener(
@@ -299,13 +341,35 @@ class MainActivity : ComponentActivity() {
         binding.recyclerview.adapter = adapter
         binding.recyclerview.layoutManager = LinearLayoutManager(this)
         radioList = list
-        return list
+
+        val saveFile = loadString(SAVE_FILE, "")
+        list.forEach {
+            if( it.isSaveFile(saveFile) ){
+                val idx = list.indexOf(it)
+                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                adapter.changeSelection(idx)
+            }
+        }
+    }
+
+    private fun resume(){
+        val list = radioList
+        val saveFile = loadString(SAVE_FILE, "")
+        val savePos = loadString(SAVE_POS, "0").toInt()
+        list.forEach {
+            if( it.isSaveFile(saveFile) ){
+                val idx = list.indexOf(it)
+                radioPlay(it, savePos)
+                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                adapter.changeSelection(idx)
+            }
+        }
     }
 
     private fun setCurrent(radioData:RadioData){
         var idx = -1
         for((i,elem) in radioList.withIndex()){
-            if(radioData.documentFile.uri.path.toString() == elem.documentFile.uri.path.toString()){
+            if(radioData.getSaveFile() == elem.getSaveFile()){
                 idx = i
                 break
             }
@@ -322,19 +386,28 @@ class MainActivity : ComponentActivity() {
                 it.stop()
                 it.reset()
             }
-            it.setDataSource(this, radioData.documentFile.uri)
-            it.prepare()
-            binding.seekBar.max = it.duration
-            currentPath = radioData.documentFile.uri.path.toString()
-            saveString(SAVE_FILE, currentPath)
-            if(pos==0){
-                binding.seekBar.progress = 0
-                saveString(SAVE_POS, pos.toString())
-            }else{
-                it.seekTo(pos)
+            try {
+                val uri = radioData.uri()
+                val url = radioData.url()
+                if(uri!=null){
+                    it.setDataSource(this, uri)
+                }else if(url!=null){
+                    it.setDataSource(url)
+                }
+                it.prepare()
+                binding.seekBar.max = it.duration
+                currentPath = radioData.getSaveFile()
+                saveString(SAVE_FILE, currentPath)
+                if (pos == 0) {
+                    binding.seekBar.progress = 0
+                    saveString(SAVE_POS, pos.toString())
+                } else {
+                    it.seekTo(pos)
+                }
+                it.start()
+                binding.buttonPlay.setText(R.string.button_pause)
+            }catch(_: Exception){
             }
-            it.start()
-            binding.buttonPlay.setText(R.string.button_pause)
         }
     }
 
@@ -345,7 +418,7 @@ class MainActivity : ComponentActivity() {
         }
         var idx=-1
         for((i,elem)in radioList.withIndex()){
-            if( elem.documentFile.uri.path.toString()==currentPath ){
+            if( elem.getSaveFile()==currentPath ){
                 idx = i;
                 break
             }
@@ -358,21 +431,5 @@ class MainActivity : ComponentActivity() {
                 adapter.changeSelection(idx)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyApplicationTheme {
-        Greeting("Android")
     }
 }

@@ -27,7 +27,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
     @SuppressLint("NotifyDataSetChanged")
     override fun onBindViewHolder(holder: MyViewHolder, @SuppressLint("RecyclerView") position: Int) {
         holder.positionText.text = position.toString()
-        holder.titleText.text = list[position].documentFile.name
+        holder.titleText.text = list[position].getName()
 
         holder.itemView.isSelected = position == selectedPosition
         if(holder.itemView.isSelected) {
