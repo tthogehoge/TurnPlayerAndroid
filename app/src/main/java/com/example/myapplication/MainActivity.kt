@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
         loadDir()
         val url = loadSetting(SAVE_URL, "")
         if(url!=""){
-            fetchEpisodes(url)
+            fetchPodcasts(url)
             // getUrl("http://abehiroshi.la.coocan.jp/menu.htm")
             // https://feeds.megaphone.fm/TBS4550274867
         }else{
@@ -196,15 +196,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchEpisodes(url:String) {
+    private fun fetchPodcasts(url:String) {
         lifecycleScope.launch {
             try {
-                val episodes = withContext(Dispatchers.IO) {
+                val podcasts = withContext(Dispatchers.IO) {
                     fetchRssFeed(url)
                 }
-                setEpisodes(episodes)
+                setPodcasts(podcasts)
                 resume()
             }catch (e:Exception){
+                resume()
             }
         }
 
@@ -225,11 +226,11 @@ class MainActivity : ComponentActivity() {
 
             val rssContent = response.body()?.string() ?: ""
             val parser = RssParser()
-            val episodes = parser.parse(rssContent)
+            val podcasts = parser.parse(rssContent)
 
             /*
             // パースした結果を使用
-            episodes.forEach { episode ->
+            podcasts.forEach { episode ->
                 println("Title: ${episode.title}")
                 println("Description: ${episode.description}")
                 println("Published: ${episode.pubDate}")
@@ -238,17 +239,16 @@ class MainActivity : ComponentActivity() {
                 println("-------------------")
             }
              */
-            return episodes
+            return podcasts
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            throw e
         }
-        return mutableListOf<PodcastEpisode>()
     }
 
-    private fun setEpisodes(episodes:List<PodcastEpisode>){
+    private fun setPodcasts(podcasts:List<PodcastEpisode>){
         val list = radioList
-        for (item in episodes) {
+        for (item in podcasts) {
             val radio = RadioData(item)
             list.add(radio)
         }
