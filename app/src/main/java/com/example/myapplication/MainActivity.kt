@@ -3,31 +3,15 @@ package com.example.myapplication
 import PodcastEpisode
 import RssParser
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.os.Handler
-import android.widget.Button
 import android.widget.SeekBar
-import android.widget.TextView
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.documentfile.provider.DocumentFile
@@ -35,27 +19,24 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.myapplication.databinding.ActivityMainBinding
-import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import retrofit2.Retrofit
-import retrofit2.converter.simplexml.SimpleXmlConverterFactory
-import java.io.File
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.io.path.Path
 import kotlin.io.path.extension
 
+const val PREFERENCE_KEY = "PREF_KEY"
+const val SAVE_DIRECTORY = "directory"
+const val SAVE_URL = "url"
+const val SAVE_FILE = "file"
+const val SAVE_POS = "pos"
+
 class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
-    private val PREFERENCE_KEY = "PREF_KEY"
-    private val SAVE_DIRECTORY = "directory"
-    private val SAVE_URL = "url"
-    private val SAVE_FILE = "file"
-    private val SAVE_POS = "pos"
     private var mediaPlayer : MediaPlayer? = null
     private lateinit var radioList: ArrayList<RadioData>
     private var currentPath = ""
@@ -136,7 +117,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        timer.scheduleAtFixedRate(task, 1000L, 1000L)
+        timer.schedule(task, 1000L, 1000L)
 
         // seekbar
         binding.seekBar.setOnSeekBarChangeListener(
@@ -346,8 +327,8 @@ class MainActivity : ComponentActivity() {
         list.forEach {
             if( it.isSaveFile(saveFile) ){
                 val idx = list.indexOf(it)
-                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
-                adapter.changeSelection(idx)
+                val adp:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                adp.changeSelection(idx)
             }
         }
     }
@@ -419,12 +400,12 @@ class MainActivity : ComponentActivity() {
         var idx=-1
         for((i,elem)in radioList.withIndex()){
             if( elem.getSaveFile()==currentPath ){
-                idx = i;
+                idx = i
                 break
             }
         }
         if(idx!=-1){
-            idx = idx + 1
+            idx += 1
             if(radioList.size>idx){
                 radioPlay(radioList[idx], 0)
                 val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
