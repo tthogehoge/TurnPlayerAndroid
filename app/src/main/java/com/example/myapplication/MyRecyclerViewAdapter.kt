@@ -16,7 +16,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
         fun onItemClick(radioData: RadioData)
     }
     fun setOnCellClickListener(listener: OnCellClickListener){
-        this.listener = listener;
+        this.listener = listener
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyViewHolder {
@@ -28,6 +28,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
     override fun onBindViewHolder(holder: MyViewHolder, @SuppressLint("RecyclerView") position: Int) {
         holder.positionText.text = position.toString()
         holder.titleText.text = list[position].getName()
+        holder.timeText.text = list[position].getTime()
 
         holder.itemView.isSelected = position == selectedPosition
         if(holder.itemView.isSelected) {

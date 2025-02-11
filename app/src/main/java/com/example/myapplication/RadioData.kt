@@ -2,11 +2,7 @@ package com.example.myapplication
 
 import PodcastEpisode
 import android.net.Uri
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.documentfile.provider.DocumentFile
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toJavaZoneId
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -41,7 +37,8 @@ class RadioData() {
         }
         if(date==null){
             val milli = documentFile.lastModified()
-            date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(milli), ZoneId.systemDefault())
+            val dt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(milli), ZoneId.systemDefault())
+            date = dt.withZoneSameInstant(ZoneId.systemDefault())
             //LocalDateTime.ofEpochSecond(milli/1000, 0, TimeZone.currentSystemDefault().)
         }
     }
@@ -49,7 +46,8 @@ class RadioData() {
         this.item = item
         // Thu, 14 Nov 2024 17:50:00 -0000
         val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
-        date = ZonedDateTime.parse(item.pubDate, formatter)
+        val dt = ZonedDateTime.parse(item.pubDate, formatter)
+        date = dt.withZoneSameInstant(ZoneId.systemDefault())
     }
 
     fun getSaveFile(): String {
@@ -67,7 +65,14 @@ class RadioData() {
             return documentFile!!.name.toString()
         }
         if(item!=null){
-            return item!!.title.toString()
+            return item!!.title
+        }
+        return ""
+    }
+
+    fun getTime(): String {
+        if(date!=null){
+            return date!!.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"))
         }
         return ""
     }
