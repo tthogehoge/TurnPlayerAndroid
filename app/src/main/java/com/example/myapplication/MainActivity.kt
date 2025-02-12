@@ -112,8 +112,10 @@ class MainActivity : ComponentActivity() {
                         val hour = min / 60
                         min %= 60
                         val posStr = String.format("%02d:%02d:%02d", hour, min, sec)
-                        binding.seekBar.progress = pos
-                        binding.textPos.text = posStr
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            binding.seekBar.progress = pos
+                            binding.textPos.text = posStr
+                        }
                     }
                 }
             }
