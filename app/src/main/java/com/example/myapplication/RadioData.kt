@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class RadioData() {
     private var documentFile: DocumentFile? = null
@@ -45,7 +46,7 @@ class RadioData() {
     constructor(item:PodcastEpisode):this(){
         this.item = item
         // Thu, 14 Nov 2024 17:50:00 -0000
-        val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
+        val formatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
         val dt = ZonedDateTime.parse(item.pubDate, formatter)
         date = dt.withZoneSameInstant(ZoneId.systemDefault())
     }

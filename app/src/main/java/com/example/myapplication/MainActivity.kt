@@ -332,21 +332,24 @@ class MainActivity : ComponentActivity() {
         val list = radioDataList
         val saveFile = loadString(SAVE_FILE, "")
         val saveTime = loadString(SAVE_TIME, "0000/00/00 00:00:00")
-        val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
-        list.forEach {
-            // SAVE_FILEが見つかったらそれ
-            if( it.isSaveFile(saveFile) ){
-                idx = list.indexOf(it)
+        val p = binding.recyclerview.adapter
+        if(p!=null) {
+            val adapter: MyRecyclerViewAdapter = p as MyRecyclerViewAdapter
+            list.forEach {
+                // SAVE_FILEが見つかったらそれ
+                if (it.isSaveFile(saveFile)) {
+                    idx = list.indexOf(it)
+                    adapter.changeSelection(idx)
+                    return idx
+                }
+                // SAVE_FILEが見つからなかったらその次の日付のファイルにする
+                if (idx2 == -1 && it.getTime() > saveTime) {
+                    idx2 = list.indexOf(it)
+                }
+            }
+            if (idx2 != -1) {
                 adapter.changeSelection(idx)
-                return idx
             }
-            // SAVE_FILEが見つからなかったらその次の日付のファイルにする
-            if( idx2==-1 && it.getTime() > saveTime ){
-                idx2 = list.indexOf(it)
-            }
-        }
-        if(idx2!=-1){
-            adapter.changeSelection(idx)
         }
         return idx2
     }
