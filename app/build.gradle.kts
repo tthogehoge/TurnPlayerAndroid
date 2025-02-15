@@ -65,11 +65,11 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.preference)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-simplexml:2.9.0") // For XML parsing
-    implementation("org.simpleframework:simple-xml:2.7.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0") // Or latest version
-    implementation("com.google.android.material:material:1.11.0")
+    implementation(libs.retrofit)
+    implementation(libs.converter.simplexml) // For XML parsing
+    implementation(libs.simple.xml)
+    implementation(libs.kotlinx.datetime) // Or latest version
+    implementation(libs.material)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
