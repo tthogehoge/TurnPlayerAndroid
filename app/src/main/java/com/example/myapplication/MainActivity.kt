@@ -169,10 +169,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadSetting() {
-        loadDir()
+        loadSettingLoadDir()
         val url = loadSetting(SAVE_URL, "")
         if(url!=""){
-            fetchPodcasts(url)
+            loadSettingFetchPodcasts(url)
             // getUrl("http://abehiroshi.la.coocan.jp/menu.htm")
             // https://feeds.megaphone.fm/TBS4550274867
         }else{
@@ -180,13 +180,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchPodcasts(url:String) {
+    private fun loadSettingLoadDir() {
+        val dir = loadSetting(SAVE_DIRECTORY, "")
+        if(dir!=""){
+            val list = listDir(dir)
+            updateList(list)
+        }
+    }
+
+    private fun loadSettingFetchPodcasts(url:String) {
         lifecycleScope.launch {
             try {
                 val podcasts = withContext(Dispatchers.IO) {
                     fetchRssFeed(url)
                 }
-                setPodcasts(podcasts)
+                val list = radioDataList
+                for (item in podcasts) {
+                    val radioData = RadioData(item)
+                    list.add(radioData)
+                }
+                updateList(list)
             }catch (e:Exception){
                 e.printStackTrace()
             }
@@ -227,23 +240,6 @@ class MainActivity : ComponentActivity() {
 
         } catch (e: Exception) {
             throw e
-        }
-    }
-
-    private fun setPodcasts(podcasts:List<PodcastEpisode>){
-        val list = radioDataList
-        for (item in podcasts) {
-            val radioData = RadioData(item)
-            list.add(radioData)
-        }
-        updateList(list)
-    }
-
-    private fun loadDir() {
-        val dir = loadSetting(SAVE_DIRECTORY, "")
-        if(dir!=""){
-            val list = listDir(dir)
-            updateList(list)
         }
     }
 
