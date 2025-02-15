@@ -1,13 +1,12 @@
 package com.example.myapplication
 
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
 
-class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter<MyViewHolder>() {
+class MyRecyclerViewAdapter(private val list:ArrayList<RadioData>): RecyclerView.Adapter<MyViewHolder>() {
 
     // click listener
     private lateinit var listener: OnCellClickListener
@@ -34,6 +33,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
         val colorP = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorPrimary)
         val colorBG = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorOnPrimary)
         holder.itemView.isSelected = position == selectedPosition
+        holder.cardView.isSelected = position == selectedPosition
         if(holder.itemView.isSelected) {
             holder.itemView.setBackgroundColor(colorP)
         }else{
@@ -41,7 +41,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
         }
 
         // click listener
-        holder.itemView.setOnClickListener {
+        holder.cardView.setOnClickListener {
             selectedPosition = position
             notifyDataSetChanged()
             listener.onItemClick(list[position])
