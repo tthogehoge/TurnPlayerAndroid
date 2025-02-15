@@ -73,7 +73,7 @@ class SettingsActivity : AppCompatActivity() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
-            val myPreference = findPreference<EditTextPreference>("directory")
+            val myPreference = findPreference<Preference>("setting_directory")
             myPreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener { preference ->
                 // directory picker activity
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {

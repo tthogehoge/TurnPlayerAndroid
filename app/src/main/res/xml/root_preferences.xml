@@ -2,6 +2,12 @@
 
     <PreferenceCategory app:title="@string/messages_header">
 
+        <Preference
+            app:key="setting_directory"
+            app:title="select directory"
+            app:useSimpleSummaryProvider="true"
+            />
+
         <EditTextPreference
             app:key="directory"
             app:title="directory"
