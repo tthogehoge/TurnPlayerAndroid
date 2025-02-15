@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <TextView
+            <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/textPos"
                 android:layout_width="64dp"
                 android:layout_height="48dp"
@@ -30,7 +30,7 @@
                 android:gravity="center_vertical"
                 android:text="9:99:99" />
 
-            <SeekBar
+            <androidx.appcompat.widget.AppCompatSeekBar
                 android:id="@+id/seekBar"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
@@ -38,25 +38,26 @@
 
         </LinearLayout>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/button_setting"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="setting" />
 
         <LinearLayout
+            style="?android:attr/buttonBarStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_stop"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="128dp"
                 android:layout_weight="1"
                 android:text="@string/button_stop" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_play"
                 android:layout_width="wrap_content"
                 android:layout_height="128dp"

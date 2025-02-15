@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.MaterialColors
 
 class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter<MyViewHolder>() {
 
@@ -30,11 +31,13 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
         holder.titleText.text = list[position].getName()
         holder.timeText.text = list[position].getTime()
 
+        val colorP = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorPrimary)
+        val colorBG = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorOnPrimary)
         holder.itemView.isSelected = position == selectedPosition
         if(holder.itemView.isSelected) {
-            holder.itemView.setBackgroundColor(Color.RED)
+            holder.itemView.setBackgroundColor(colorP)
         }else{
-            holder.itemView.setBackgroundColor(Color.WHITE)
+            holder.itemView.setBackgroundColor(colorBG)
         }
 
         // click listener
@@ -42,7 +45,7 @@ class MyRecyclerViewAdapter(val list:ArrayList<RadioData>): RecyclerView.Adapter
             selectedPosition = position
             notifyDataSetChanged()
             listener.onItemClick(list[position])
-            holder.linearLayout.setBackgroundColor(Color.RED)
+            holder.linearLayout.setBackgroundColor(colorP)
         }
     }
 

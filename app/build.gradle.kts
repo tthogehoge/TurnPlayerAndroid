@@ -69,6 +69,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-simplexml:2.9.0") // For XML parsing
     implementation("org.simpleframework:simple-xml:2.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0") // Or latest version
+    implementation("com.google.android.material:material:1.11.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
