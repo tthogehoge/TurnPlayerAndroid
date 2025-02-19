@@ -50,12 +50,25 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_stop"
+            <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="128dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/button_stop" />
+                android:orientation="vertical">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_mute"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:text="@string/button_mute" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_stop"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:text="@string/button_stop" />
+
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_play"

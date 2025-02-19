@@ -2,6 +2,8 @@
     <string name="app_name">FPlayer</string>
     <string name="button_directory">Directory</string>
     <string name="test_text">Test</string>
+    <string name="button_mute">Mute</string>
+    <string name="button_unmute">UnMute</string>
     <string name="button_stop">Stop</string>
     <string name="button_pause">Pause</string>
     <string name="button_play">Play</string>

@@ -3,11 +3,14 @@ package com.example.myapplication
 import PodcastEpisode
 import RssParser
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.SeekBar
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.myapplication.databinding.ActivityMainBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,6 +46,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var radioDataList: ArrayList<RadioData>
     private var currentPath = ""
     private lateinit var timer: Timer
+    private val notificationManager by lazy {
+        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -85,6 +92,7 @@ class MainActivity : ComponentActivity() {
                     saveString(SAVE_POS, it.currentPosition.toString())
                     binding.buttonPlay.setText(R.string.button_play)
                 }else{
+                    unMute()
                     it.start()
                     binding.buttonPlay.setText(R.string.button_pause)
                 }
@@ -96,6 +104,20 @@ class MainActivity : ComponentActivity() {
             mediaPlayer?.let{
                 saveString(SAVE_POS, it.currentPosition.toString())
                 it.stop()
+            }
+        }
+
+        // button Mute
+        if(getMuteState()){
+            binding.buttonMute.setText(R.string.button_unmute)
+        }else{
+            binding.buttonMute.setText(R.string.button_mute)
+        }
+        binding.buttonMute.setOnClickListener {
+            if(getMuteState()){
+                unMute()
+            }else{
+                mute()
             }
         }
 
@@ -166,6 +188,110 @@ class MainActivity : ComponentActivity() {
             }
         }
         super.onPause()
+    }
+
+    private fun checkDoNotDisturbPermission() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 権限チェック
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            // 権限がない場合、設定画面を開く
+            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+            startActivity(intent)
+        }
+    }
+
+    private fun showPermissionExplanationDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("権限が必要です")
+            .setMessage("マナーモードの設定を変更するには、権限の付与が必要です。")
+            .setPositiveButton("設定") { _, _ ->
+                checkDoNotDisturbPermission()
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
+    }
+
+    private fun getMuteState() : Boolean {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        var ismute = false
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            showPermissionExplanationDialog()
+        } else {
+            // マナーモード設定の変更処理
+            try {
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL ){
+                    ismute = true
+                }
+            } catch (e: SecurityException) {
+                showPermissionExplanationDialog()
+            }
+            try{
+                if(audioManager.ringerMode!=AudioManager.RINGER_MODE_NORMAL){
+                    ismute = true
+                }
+                if(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != maxVolume){
+                    ismute = true
+                }
+            }catch(e:Exception){
+                e.printStackTrace()
+            }
+        }
+        return ismute
+    }
+
+    private fun unMute() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            showPermissionExplanationDialog()
+        } else {
+            // マナーモード設定の変更処理
+            try {
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL ){
+                    notificationManager.setInterruptionFilter(
+                        NotificationManager.INTERRUPTION_FILTER_ALL
+                    )
+                }
+            } catch (e: SecurityException) {
+                showPermissionExplanationDialog()
+            }
+            try{
+                audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, AudioManager.FLAG_SHOW_UI)
+            }catch(e:Exception){
+                e.printStackTrace()
+            }
+        }
+        binding.buttonMute.setText(R.string.button_mute)
+    }
+
+    private fun mute() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        //audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI)
+        if (!notificationManager.isNotificationPolicyAccessGranted) {
+            showPermissionExplanationDialog()
+        } else {
+            // マナーモード設定の変更処理
+            try {
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_NONE ){
+                    notificationManager.setInterruptionFilter(
+                        NotificationManager.INTERRUPTION_FILTER_NONE
+                    )
+                }
+            } catch (e: SecurityException) {
+                showPermissionExplanationDialog()
+            }
+            try{
+                audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
+            }catch(e:Exception){
+                e.printStackTrace()
+            }
+        }
+        binding.buttonMute.setText(R.string.button_unmute)
     }
 
     private fun loadSetting() {
@@ -404,6 +530,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     it.seekTo(pos)
                 }
+                unMute()
                 it.start()
                 binding.buttonPlay.setText(R.string.button_pause)
             }catch(_: Exception){
