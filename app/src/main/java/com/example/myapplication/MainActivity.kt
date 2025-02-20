@@ -15,6 +15,7 @@ import android.widget.SeekBar
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.documentfile.provider.DocumentFile
@@ -91,10 +92,12 @@ class MainActivity : ComponentActivity() {
                     it.pause()
                     saveString(SAVE_POS, it.currentPosition.toString())
                     binding.buttonPlay.setText(R.string.button_play)
+                    binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_play_arrow_24)
                 }else{
                     unMute()
                     it.start()
                     binding.buttonPlay.setText(R.string.button_pause)
+                    binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
                 }
             }
         }
@@ -110,8 +113,10 @@ class MainActivity : ComponentActivity() {
         // button Mute
         if(getMuteState()){
             binding.buttonMute.setText(R.string.button_unmute)
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
         }else{
             binding.buttonMute.setText(R.string.button_mute)
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
         }
         binding.buttonMute.setOnClickListener {
             if(getMuteState()){
@@ -265,12 +270,11 @@ class MainActivity : ComponentActivity() {
             }
         }
         binding.buttonMute.setText(R.string.button_mute)
+        binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
     }
 
     private fun mute() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        //audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI)
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
         } else {
@@ -292,6 +296,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         binding.buttonMute.setText(R.string.button_unmute)
+        binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
     }
 
     private fun loadSetting() {
@@ -533,6 +538,7 @@ class MainActivity : ComponentActivity() {
                 unMute()
                 it.start()
                 binding.buttonPlay.setText(R.string.button_pause)
+                binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
             }catch(_: Exception){
             }
         }
