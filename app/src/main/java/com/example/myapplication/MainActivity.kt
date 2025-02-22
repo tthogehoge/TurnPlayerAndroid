@@ -36,6 +36,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.extension
 
 const val PREFERENCE_KEY = "PREF_KEY"
+const val USE_DND = "use_dnd"
 const val SAVE_DIRECTORY = "directory"
 const val SAVE_URL = "url"
 const val SAVE_FILE = "file"
@@ -96,6 +97,7 @@ class MainActivity : ComponentActivity() {
         val getContent = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
+            setMuteButton()
             loadSetting()
         }
 
@@ -123,13 +125,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // button Mute
-        if(getMuteState()){
-            binding.buttonMute.setText(R.string.button_unmute)
-            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
-        }else{
-            binding.buttonMute.setText(R.string.button_mute)
-            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
-        }
+        setMuteButton()
         binding.buttonMute.setOnClickListener {
             if(getMuteState()){
                 unMute()
@@ -233,6 +229,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun getMuteState() : Boolean {
+        if(!loadSettingBoolean(USE_DND, false)){
+            return false
+        }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         var ismute = false
@@ -261,7 +260,29 @@ class MainActivity : ComponentActivity() {
         return ismute
     }
 
+    private fun setMuteButton() {
+        if(!loadSettingBoolean(USE_DND, false)){
+            binding.buttonMute.setText("disabled")
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
+            binding.buttonMute.isEnabled = false
+            return
+        }
+        binding.buttonMute.isEnabled = true
+        if(getMuteState()){
+            binding.buttonMute.setText(R.string.button_unmute)
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
+        }else{
+            binding.buttonMute.setText(R.string.button_mute)
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
+        }
+    }
+
     private fun unMute() {
+        if(!loadSettingBoolean(USE_DND, false)){
+            binding.buttonMute.setText("disabled")
+            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
+            return
+        }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         if (!notificationManager.isNotificationPolicyAccessGranted) {
@@ -289,6 +310,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun mute() {
+        if(!loadSettingBoolean(USE_DND, false)){
+            return
+        }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
@@ -419,6 +443,21 @@ class MainActivity : ComponentActivity() {
         var value:String? = null
         try {
             value = sharedPref.getString(key,defValue)
+        } catch(_: Exception) {
+        }
+        if(value != null){
+            return value
+        }
+        return defValue
+    }
+
+    // loadSettingBoolean
+    @Suppress("SameParameterValue")
+    private fun loadSettingBoolean(key: String, defValue: Boolean): Boolean {
+        val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
+        var value:Boolean? = null
+        try {
+            value = sharedPref.getBoolean(key,defValue)
         } catch(_: Exception) {
         }
         if(value != null){

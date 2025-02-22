@@ -16,7 +16,13 @@
 
         <EditTextPreference
             app:key="url"
-            app:title="podcast url"
+            app:title="podcast rss url"
+            app:useSimpleSummaryProvider="true"
+            />
+
+        <SwitchPreference
+            app:key="use_dnd"
+            app:title="enable volume control"
             app:useSimpleSummaryProvider="true"
             />
 
