@@ -50,12 +50,31 @@ class MainActivity : ComponentActivity() {
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
+    private var err_count = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
         radioDataList = ArrayList()
         mediaPlayer = MediaPlayer()
-        mediaPlayer?.setOnCompletionListener { nextPlay() }
+        mediaPlayer?.setOnCompletionListener {
+            // 正常に終了したらエラーカウントリセット
+            err_count=0
+            nextPlay()
+        }
+        mediaPlayer?.setOnErrorListener { mp, _, _ ->
+            var ret = false
+            // エラーだったらretry 5回
+            if(err_count < 5) {
+                // 今の位置を覚えてresume
+                saveString(SAVE_POS, mp.currentPosition.toString())
+                mp.stop()
+                mp.reset()
+                resume();
+                ret = true
+                err_count+=1
+            }
+            ret
+        }
         timer = Timer()
 
         // 親クラス
@@ -125,6 +144,9 @@ class MainActivity : ComponentActivity() {
                 mute()
             }
         }
+
+        // 初回unmute
+        unMute()
 
         // timer
         val task = object : TimerTask() {
@@ -535,7 +557,6 @@ class MainActivity : ComponentActivity() {
                 } else {
                     it.seekTo(pos)
                 }
-                unMute()
                 it.start()
                 binding.buttonPlay.setText(R.string.button_pause)
                 binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
