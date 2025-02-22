@@ -42,7 +42,10 @@
             android:id="@+id/button_setting"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="setting" />
+            android:text="setting"
+            app:icon="@drawable/baseline_build_24"
+            app:iconGravity="textStart"
+            />
 
         <LinearLayout
             style="?android:attr/buttonBarStyle"
@@ -54,7 +57,7 @@
                 android:id="@+id/button_mute"
                 android:layout_width="match_parent"
                 android:layout_height="128dp"
-                android:layout_weight="3"
+                android:layout_weight="2"
                 android:text="@string/button_mute"
                 app:icon="@drawable/baseline_volume_off_24"
                 app:iconGravity="textStart"
