@@ -58,6 +58,20 @@ class MainActivity : ComponentActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         radioDataList = ArrayList()
         mediaPlayer = MediaPlayer()
+        mediaPlayer?.setOnPreparedListener {
+            prepareCompleted()
+        }
+        // progressBar
+        binding.progressBar.max = 100
+        binding.progressBar.visibility = View.GONE
+        mediaPlayer?.setOnBufferingUpdateListener { _, percent ->
+            if(percent<100){
+                binding.progressBar.progress = percent
+                binding.progressBar.visibility = View.VISIBLE
+            }else {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
         mediaPlayer?.setOnCompletionListener {
             // 正常に終了したらエラーカウントリセット
             errCount=0
@@ -582,22 +596,29 @@ class MainActivity : ComponentActivity() {
                 }else if(url!=null){
                     it.setDataSource(url)
                 }
-                it.prepare()
-                binding.seekBar.max = it.duration
                 currentPath = radioData.getSaveFile()
                 saveString(SAVE_FILE, currentPath)
                 saveString(SAVE_TIME, radioData.getTime())
                 if (pos == 0) {
                     binding.seekBar.progress = 0
                     saveString(SAVE_POS, 0.toString())
-                } else {
-                    it.seekTo(pos)
                 }
-                it.start()
-                binding.buttonPlay.setText(R.string.button_pause)
-                binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
+                it.prepareAsync() // -> prepareCompleted
             }catch(_: Exception){
             }
+        }
+    }
+
+    private fun prepareCompleted() {
+        mediaPlayer?.let {
+            binding.seekBar.max = it.duration
+            val savePos = loadString(SAVE_POS, "0").toInt()
+            if (savePos != 0) {
+                it.seekTo(savePos)
+            }
+            it.start()
+            binding.buttonPlay.setText(R.string.button_pause)
+            binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
         }
     }
 
