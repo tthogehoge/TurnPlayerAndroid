@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
-    private var err_count = 0
+    private var errCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -59,20 +59,20 @@ class MainActivity : ComponentActivity() {
         mediaPlayer = MediaPlayer()
         mediaPlayer?.setOnCompletionListener {
             // 正常に終了したらエラーカウントリセット
-            err_count=0
+            errCount=0
             nextPlay()
         }
         mediaPlayer?.setOnErrorListener { mp, _, _ ->
             var ret = false
             // エラーだったらretry 5回
-            if(err_count < 5) {
+            if(errCount < 5) {
                 // 今の位置を覚えてresume
                 saveString(SAVE_POS, mp.currentPosition.toString())
                 mp.stop()
                 mp.reset()
-                resume();
+                resume()
                 ret = true
-                err_count+=1
+                errCount+=1
             }
             ret
         }
@@ -119,14 +119,6 @@ class MainActivity : ComponentActivity() {
                     binding.buttonPlay.setText(R.string.button_pause)
                     binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_pause_24)
                 }
-            }
-        }
-
-        // button Stop
-        binding.buttonStop.setOnClickListener {
-            mediaPlayer?.let{
-                saveString(SAVE_POS, it.currentPosition.toString())
-                it.stop()
             }
         }
 
@@ -421,6 +413,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // loadSetting
+    @Suppress("SameParameterValue")
     private fun loadSetting(key: String, defValue: String): String {
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
         var value:String? = null
@@ -557,7 +550,7 @@ class MainActivity : ComponentActivity() {
                 saveString(SAVE_TIME, radioData.getTime())
                 if (pos == 0) {
                     binding.seekBar.progress = 0
-                    saveString(SAVE_POS, pos.toString())
+                    saveString(SAVE_POS, 0.toString())
                 } else {
                     it.seekTo(pos)
                 }

@@ -50,37 +50,22 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_mute"
+                android:layout_width="match_parent"
+                android:layout_height="128dp"
+                android:layout_weight="3"
+                android:text="@string/button_mute"
+                app:icon="@drawable/baseline_volume_off_24"
+                app:iconGravity="textStart"
+                />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/button_mute"
-                    android:layout_width="match_parent"
-                    android:layout_height="64dp"
-                    android:text="@string/button_mute"
-                    app:icon="@drawable/baseline_volume_off_24"
-                    app:iconGravity="textStart"
-                    />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/button_stop"
-                    android:layout_width="match_parent"
-                    android:layout_height="64dp"
-                    android:text="@string/button_stop"
-                    app:icon="@drawable/baseline_stop_24"
-                    app:iconGravity="textStart"
-                    />
-
-            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_play"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="128dp"
-                android:layout_weight="3"
+                android:layout_weight="1"
                 android:text="@string/button_play"
                 app:icon="@drawable/baseline_play_arrow_24"
                 app:iconGravity="textStart"
