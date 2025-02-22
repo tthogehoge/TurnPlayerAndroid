@@ -568,7 +568,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setCurrent(radioData:RadioData){
+    private fun scrollTo(radioData:RadioData){
         var idx = -1
         for((i,elem) in radioDataList.withIndex()){
             if(radioData.getSaveFile() == elem.getSaveFile()){
@@ -582,11 +582,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun radioPlay(radioData: RadioData, pos:Int) {
-        setCurrent(radioData)
+        scrollTo(radioData)
         mediaPlayer?.let{
+            var resetPlayer = false
             if(it.isPlaying){
-                it.stop()
-                it.reset()
+                resetPlayer = true
+            }else if(currentPath != radioData.getSaveFile()){
+                // pauseだとisPlayingに引っかからない
+                // stop/resetしないままだとplayできないので、
+                // とりあえずクリックした番組が変わったらいったん止める
+                resetPlayer = true
+            }
+            if(resetPlayer){
+                try {
+                    it.stop()
+                    it.reset()
+                }catch(_: Exception) {
+                }
             }
             try {
                 val uri = radioData.uri()
@@ -603,6 +615,7 @@ class MainActivity : ComponentActivity() {
                     binding.seekBar.progress = 0
                     saveString(SAVE_POS, 0.toString())
                 }
+                binding.progressBar.visibility = View.GONE
                 it.prepareAsync() // -> prepareCompleted
             }catch(_: Exception){
             }

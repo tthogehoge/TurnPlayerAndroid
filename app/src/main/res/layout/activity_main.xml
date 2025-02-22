@@ -63,13 +63,13 @@
         <LinearLayout
             style="?android:attr/buttonBarStyle"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="128dp"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_mute"
                 android:layout_width="match_parent"
-                android:layout_height="128dp"
+                android:layout_height="match_parent"
                 android:layout_weight="2"
                 android:text="@string/button_mute"
                 app:icon="@drawable/baseline_volume_off_24"
@@ -80,7 +80,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_play"
                 android:layout_width="match_parent"
-                android:layout_height="128dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:text="@string/button_play"
                 app:icon="@drawable/baseline_play_arrow_24"
