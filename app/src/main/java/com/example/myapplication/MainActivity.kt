@@ -2,7 +2,6 @@ package com.example.myapplication
 
 import PodcastEpisode
 import RssParser
-import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -10,12 +9,15 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.widget.SeekBar
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.Locale
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.io.path.Path
@@ -77,7 +80,7 @@ class MainActivity : ComponentActivity() {
             errCount=0
             nextPlay()
         }
-        mediaPlayer?.setOnErrorListener { mp, _, _ ->
+        mediaPlayer?.setOnErrorListener { mp, what, extra ->
             var ret = false
             // エラーだったらretry 5回
             if(errCount < 5) {
@@ -89,6 +92,24 @@ class MainActivity : ComponentActivity() {
                 ret = true
                 errCount+=1
             }
+
+            val errorMessage = when (what) {
+                MediaPlayer.MEDIA_ERROR_UNKNOWN -> {
+                    when (extra) {
+                        MediaPlayer.MEDIA_ERROR_IO -> "Media error: IO error"
+                        MediaPlayer.MEDIA_ERROR_MALFORMED -> "Media error: Malformed"
+                        MediaPlayer.MEDIA_ERROR_UNSUPPORTED -> "Media error: Unsupported"
+                        MediaPlayer.MEDIA_ERROR_TIMED_OUT -> "Media error: Timed out"
+                        else -> "An unknown media error occurred"
+                    }
+                }
+                MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "Media server died"
+                else -> "An unknown error occurred"
+            }
+
+            // Display the error message to the user
+            showErrorMessage("$errorMessage:$errCount:$ret")
+
             ret
         }
         timer = Timer()
@@ -153,7 +174,6 @@ class MainActivity : ComponentActivity() {
 
         // timer
         val task = object : TimerTask() {
-            @SuppressLint("DefaultLocale")
             override fun run() {
                 mediaPlayer?.let{
                     if(it.isPlaying){
@@ -163,7 +183,7 @@ class MainActivity : ComponentActivity() {
                         sec %= 60
                         val hour = min / 60
                         min %= 60
-                        val posStr = String.format("%02d:%02d:%02d", hour, min, sec)
+                        val posStr = String.format(Locale.US, "%02d:%02d:%02d", hour, min, sec)
                         lifecycleScope.launch(Dispatchers.Main) {
                             binding.seekBar.progress = pos
                             binding.textPos.text = posStr
@@ -200,6 +220,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        super.onDestroy()
         mediaPlayer?.let{
             if(it.isPlaying){
                 saveString(SAVE_POS, it.currentPosition.toString())
@@ -208,7 +229,7 @@ class MainActivity : ComponentActivity() {
             it.release()
             mediaPlayer = null
         }
-        super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
     }
 
     override fun onPause() {
@@ -350,6 +371,22 @@ class MainActivity : ComponentActivity() {
         }
         binding.buttonMute.setText(R.string.button_unmute)
         binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
+    }
+
+    private var alertDialog: AlertDialog? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private fun showErrorMessage(message: String) {
+        alertDialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Error")
+            .setMessage(message)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }.create()
+
+        alertDialog?.show()
+        handler.postDelayed({
+                alertDialog?.dismiss()
+        }, 5000)
     }
 
     private fun loadSetting() {
@@ -617,7 +654,11 @@ class MainActivity : ComponentActivity() {
                 }
                 binding.progressBar.visibility = View.GONE
                 it.prepareAsync() // -> prepareCompleted
-            }catch(_: Exception){
+            }catch(e: Exception){
+                e.printStackTrace()
+                e.message?.let{msg->
+                    showErrorMessage(msg)
+                }
             }
         }
     }
