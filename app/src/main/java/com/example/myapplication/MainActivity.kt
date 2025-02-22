@@ -376,6 +376,7 @@ class MainActivity : ComponentActivity() {
     private var alertDialog: AlertDialog? = null
     private val handler = Handler(Looper.getMainLooper())
     private fun showErrorMessage(message: String) {
+        alertDialog?.dismiss()
         alertDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Error")
             .setMessage(message)
@@ -386,6 +387,7 @@ class MainActivity : ComponentActivity() {
         alertDialog?.show()
         handler.postDelayed({
                 alertDialog?.dismiss()
+                alertDialog=null
         }, 5000)
     }
 
