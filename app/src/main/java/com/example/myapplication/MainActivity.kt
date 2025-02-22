@@ -233,12 +233,12 @@ class MainActivity : ComponentActivity() {
 
     private fun showPermissionExplanationDialog() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("権限が必要です")
-            .setMessage("マナーモードの設定を変更するには、権限の付与が必要です。")
-            .setPositiveButton("設定") { _, _ ->
+            .setTitle("Permission required")
+            .setMessage("Grant permission to change Do Not Disturb mode")
+            .setPositiveButton("setting") { _, _ ->
                 checkDoNotDisturbPermission()
             }
-            .setNegativeButton("キャンセル", null)
+            .setNegativeButton("cancel", null)
             .show()
     }
 
