@@ -11,6 +11,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.widget.SeekBar
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
@@ -329,6 +330,7 @@ class MainActivity : ComponentActivity() {
             // getUrl("http://abehiroshi.la.coocan.jp/menu.htm")
             // https://feeds.megaphone.fm/TBS4550274867
         }else{
+            binding.loadingSpinner.visibility = View.GONE
             resume()
         }
     }
@@ -336,6 +338,7 @@ class MainActivity : ComponentActivity() {
     private fun loadSettingLoadDir() {
         val dir = loadSetting(SAVE_DIRECTORY, "")
         if(dir!=""){
+            binding.loadingSpinner.visibility = View.VISIBLE
             val list = listDir(dir)
             updateList(list)
         }
@@ -356,6 +359,7 @@ class MainActivity : ComponentActivity() {
             }catch (e:Exception){
                 e.printStackTrace()
             }
+            binding.loadingSpinner.visibility = View.GONE
             resume()
         }
 
