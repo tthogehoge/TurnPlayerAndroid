@@ -21,7 +21,7 @@
             android:id="@+id/button_setting"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="setting"
+            android:text="@string/button_setting"
             app:icon="@drawable/baseline_build_24"
             app:iconGravity="textStart"
             />
@@ -29,7 +29,7 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerview"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
             />
 
@@ -50,7 +50,7 @@
                 android:layout_height="48dp"
                 android:layout_weight="0"
                 android:gravity="center_vertical"
-                android:text="9:99:99" />
+                />
 
             <androidx.appcompat.widget.AppCompatSeekBar
                 android:id="@+id/seekBar"
