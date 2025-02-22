@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 初回unmute
+        // 初回un-mute
         unMute()
 
         // timer
@@ -269,35 +269,35 @@ class MainActivity : ComponentActivity() {
         }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        var ismute = false
+        var isMute = false
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
         } else {
             // マナーモード設定の変更処理
             try {
                 if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL ){
-                    ismute = true
+                    isMute = true
                 }
             } catch (e: SecurityException) {
                 showPermissionExplanationDialog()
             }
             try{
                 if(audioManager.ringerMode!=AudioManager.RINGER_MODE_NORMAL){
-                    ismute = true
+                    isMute = true
                 }
                 if(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != maxVolume){
-                    ismute = true
+                    isMute = true
                 }
             }catch(e:Exception){
                 e.printStackTrace()
             }
         }
-        return ismute
+        return isMute
     }
 
     private fun setMuteButton() {
         if(!loadSettingBoolean(USE_DND, false)){
-            binding.buttonMute.setText("disabled")
+            binding.buttonMute.setText(R.string.button_mute_disabled)
             binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             binding.buttonMute.isEnabled = false
             return
@@ -314,7 +314,7 @@ class MainActivity : ComponentActivity() {
 
     private fun unMute() {
         if(!loadSettingBoolean(USE_DND, false)){
-            binding.buttonMute.setText("disabled")
+            binding.buttonMute.setText(R.string.button_mute_disabled)
             binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             return
         }
