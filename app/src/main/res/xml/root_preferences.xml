@@ -1,4 +1,6 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    >
 
     <PreferenceCategory app:title="@string/messages_header">
 
@@ -24,6 +26,17 @@
             app:key="use_dnd"
             app:title="enable volume control"
             app:useSimpleSummaryProvider="true"
+            />
+
+        <SeekBarPreference
+            app:key="skip_time"
+            app:title="skip time in sec"
+            app:useSimpleSummaryProvider="true"
+            app:showSeekBarValue="true"
+            app:adjustable="true"
+            app:seekBarIncrement="5"
+            android:max="300"
+            app:min="5"
             />
 
     </PreferenceCategory>

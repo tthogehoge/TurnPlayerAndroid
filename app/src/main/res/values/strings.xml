@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FPlayer</string>
+    <string name="app_name">TurnPlayer</string>
     <string name="button_directory">Directory</string>
     <string name="test_text">Test</string>
     <string name="button_mute">Mute</string>
@@ -9,6 +9,8 @@
     <string name="button_pause">Pause</string>
     <string name="button_play">Play</string>
     <string name="button_setting">Setting</string>
+    <string name="button_forward">Forward</string>
+    <string name="button_backward">Backward</string>
     <!-- Preference Titles -->
     <string name="messages_header">Messages</string>
     <string name="sync_header">Sync</string>

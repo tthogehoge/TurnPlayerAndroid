@@ -63,6 +63,34 @@
         <LinearLayout
             style="?android:attr/buttonBarStyle"
             android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_backward"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="@string/button_backward"
+                app:icon="@drawable/baseline_replay_24"
+                app:iconGravity="textStart"
+                />
+
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_forward"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="@string/button_forward"
+                app:icon="@drawable/baseline_forward_5_24"
+                app:iconGravity="textStart"
+                />
+        </LinearLayout>
+
+        <LinearLayout
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="match_parent"
             android:layout_height="128dp"
             android:orientation="horizontal">
 

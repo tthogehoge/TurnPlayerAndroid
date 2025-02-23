@@ -74,7 +74,7 @@ class SettingsActivity : AppCompatActivity() {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
             val myPreference = findPreference<Preference>("setting_directory")
-            myPreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener { preference ->
+            myPreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener { _ ->
                 // directory picker activity
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
                     flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -84,7 +84,7 @@ class SettingsActivity : AppCompatActivity() {
                 false
             }
 
-            myPreference?.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { preference, newValue ->
+            myPreference?.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
                 val dir = newValue.toString()
                 val act:SettingsActivity = activity as SettingsActivity
                 act.onDirectorySet(dir)

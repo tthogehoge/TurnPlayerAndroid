@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import PodcastEpisode
 import RssParser
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -40,6 +41,7 @@ import kotlin.io.path.extension
 
 const val PREFERENCE_KEY = "PREF_KEY"
 const val USE_DND = "use_dnd"
+const val SKIP_TIME = "skip_time"
 const val SAVE_DIRECTORY = "directory"
 const val SAVE_URL = "url"
 const val SAVE_FILE = "file"
@@ -132,7 +134,7 @@ class MainActivity : ComponentActivity() {
         val getContent = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
-            setMuteButton()
+            setButtons()
             loadSetting()
         }
 
@@ -159,8 +161,26 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        binding.buttonForward.setOnClickListener {
+            mediaPlayer?.let {
+                if (it.isPlaying) {
+                    val t = loadSettingInt(SKIP_TIME,5)
+                    it.seekTo(it.currentPosition + t*1000)
+                }
+            }
+        }
+
+        binding.buttonBackward.setOnClickListener {
+            mediaPlayer?.let {
+                if (it.isPlaying) {
+                    val t = loadSettingInt(SKIP_TIME,5)
+                    it.seekTo(it.currentPosition - t*1000)
+                }
+            }
+        }
+
         // button Mute
-        setMuteButton()
+        setButtons()
         binding.buttonMute.setOnClickListener {
             if(getMuteState()){
                 unMute()
@@ -295,20 +315,27 @@ class MainActivity : ComponentActivity() {
         return isMute
     }
 
-    private fun setMuteButton() {
+    @SuppressLint("SetTextI18n")
+    private fun setButtons() {
+        // button forward
+        val setTime = loadSettingInt(SKIP_TIME,5)
+        binding.buttonForward.text = "${setTime}s"
+        binding.buttonBackward.text = "${setTime}s"
+
+        // mute button
         if(!loadSettingBoolean(USE_DND, false)){
             binding.buttonMute.setText(R.string.button_mute_disabled)
             binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             binding.buttonMute.isEnabled = false
-            return
-        }
-        binding.buttonMute.isEnabled = true
-        if(getMuteState()){
-            binding.buttonMute.setText(R.string.button_unmute)
-            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
         }else{
-            binding.buttonMute.setText(R.string.button_mute)
-            binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
+            binding.buttonMute.isEnabled = true
+            if(getMuteState()){
+                binding.buttonMute.setText(R.string.button_unmute)
+                binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
+            }else{
+                binding.buttonMute.setText(R.string.button_mute)
+                binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
+            }
         }
     }
 
@@ -511,6 +538,21 @@ class MainActivity : ComponentActivity() {
         var value:Boolean? = null
         try {
             value = sharedPref.getBoolean(key,defValue)
+        } catch(_: Exception) {
+        }
+        if(value != null){
+            return value
+        }
+        return defValue
+    }
+
+    // loadSettingBoolean
+    @Suppress("SameParameterValue")
+    private fun loadSettingInt(key: String, defValue: Int): Int {
+        val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
+        var value:Int? = null
+        try {
+            value = sharedPref.getInt(key,defValue)
         } catch(_: Exception) {
         }
         if(value != null){
