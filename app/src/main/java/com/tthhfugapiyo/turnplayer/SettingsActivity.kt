@@ -65,6 +65,9 @@ class SettingsActivity : AppCompatActivity() {
                         val dir = uri.toString()
                         val myPreference = findPreference<EditTextPreference>("directory")
                         myPreference?.text = dir
+
+                        val act:SettingsActivity = activity as SettingsActivity
+                        act.onDirectorySet(dir)
                     }
                 }
             }
