@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.tthhfugapiyo.turnplayer"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.tthhfugapiyo.turnplayer"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

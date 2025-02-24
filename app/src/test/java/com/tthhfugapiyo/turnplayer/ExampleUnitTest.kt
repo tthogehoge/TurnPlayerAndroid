@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.tthhfugapiyo.turnplayer
 
 import org.junit.Test
 

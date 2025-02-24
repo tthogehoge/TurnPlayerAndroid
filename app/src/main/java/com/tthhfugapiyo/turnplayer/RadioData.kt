@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.tthhfugapiyo.turnplayer
 
 import PodcastEpisode
 import android.net.Uri

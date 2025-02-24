@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.tthhfugapiyo.turnplayer
 
 import android.annotation.SuppressLint
 import android.view.LayoutInflater
