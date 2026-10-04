@@ -4,13 +4,15 @@ import PodcastEpisode
 import RssParser
 import android.annotation.SuppressLint
 import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.media.AudioManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
@@ -26,8 +28,8 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.tthhfugapiyo.turnplayer.databinding.ActivityMainBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.tthhfugapiyo.turnplayer.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,7 +52,8 @@ const val SAVE_POS = "pos"
 
 class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
-    private var mediaPlayer : MediaPlayer? = null
+    private var playbackService: PlaybackService? = null
+    private var bound = false
     private lateinit var radioDataList: ArrayList<RadioData>
     private var currentPath = ""
     private lateinit var timer: Timer
@@ -59,75 +62,44 @@ class MainActivity : ComponentActivity() {
     }
     private var errCount = 0
 
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as PlaybackService.LocalBinder
+            playbackService = binder.getService()
+            bound = true
+            setupServiceCallbacks()
+            loadSetting()
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            bound = false
+            playbackService = null
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         radioDataList = ArrayList()
-        mediaPlayer = MediaPlayer()
-        mediaPlayer?.setOnPreparedListener {
-            prepareCompleted()
-        }
+
         // progressBar
         binding.progressBar.max = 100
         binding.progressBar.visibility = View.GONE
-        mediaPlayer?.setOnBufferingUpdateListener { _, percent ->
-            if(percent<100){
-                binding.progressBar.progress = percent
-                binding.progressBar.visibility = View.VISIBLE
-            }else {
-                binding.progressBar.visibility = View.GONE
-            }
-        }
-        mediaPlayer?.setOnCompletionListener {
-            // 正常に終了したらエラーカウントリセット
-            errCount=0
-            nextPlay()
-        }
-        mediaPlayer?.setOnErrorListener { mp, what, extra ->
-            var ret = false
-            // エラーだったらretry 5回
-            if(errCount < 5) {
-                // 今の位置を覚えてresume
-                saveString(SAVE_POS, mp.currentPosition.toString())
-                mp.stop()
-                mp.reset()
-                resume()
-                ret = true
-                errCount+=1
-            }
 
-            val errorMessage = when (what) {
-                MediaPlayer.MEDIA_ERROR_UNKNOWN -> {
-                    when (extra) {
-                        MediaPlayer.MEDIA_ERROR_IO -> "Media error: IO error"
-                        MediaPlayer.MEDIA_ERROR_MALFORMED -> "Media error: Malformed"
-                        MediaPlayer.MEDIA_ERROR_UNSUPPORTED -> "Media error: Unsupported"
-                        MediaPlayer.MEDIA_ERROR_TIMED_OUT -> "Media error: Timed out"
-                        else -> "An unknown media error occurred"
-                    }
-                }
-                MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "Media server died"
-                else -> "An unknown error occurred"
-            }
-
-            // Display the error message to the user
-            showErrorMessage("$errorMessage:$errCount:$ret")
-
-            ret
-        }
         timer = Timer()
-
-        // 親クラス
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // アクティビティ
         setContentView(binding.root)
 
-        // insets ?
+        // insets
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
+        }
+
+        // Bind PlaybackService
+        Intent(this, PlaybackService::class.java).also { intent ->
+            bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
 
         // 設定終了時
@@ -146,13 +118,13 @@ class MainActivity : ComponentActivity() {
 
         // button Play
         binding.buttonPlay.setOnClickListener {
-            mediaPlayer?.let{
-                if(it.isPlaying){
+            playbackService?.let {
+                if (it.isPlaying) {
                     it.pause()
                     saveString(SAVE_POS, it.currentPosition.toString())
                     binding.buttonPlay.setText(R.string.button_play)
                     binding.buttonPlay.icon = ContextCompat.getDrawable(this, R.drawable.baseline_play_arrow_24)
-                }else{
+                } else {
                     unMute()
                     it.start()
                     binding.buttonPlay.setText(R.string.button_pause)
@@ -162,19 +134,19 @@ class MainActivity : ComponentActivity() {
         }
 
         binding.buttonForward.setOnClickListener {
-            mediaPlayer?.let {
+            playbackService?.let {
                 if (it.isPlaying) {
-                    val t = loadSettingInt(SKIP_TIME,5)
-                    it.seekTo(it.currentPosition + t*1000)
+                    val t = loadSettingInt(SKIP_TIME, 5)
+                    it.seekTo(it.currentPosition + t * 1000)
                 }
             }
         }
 
         binding.buttonBackward.setOnClickListener {
-            mediaPlayer?.let {
+            playbackService?.let {
                 if (it.isPlaying) {
-                    val t = loadSettingInt(SKIP_TIME,5)
-                    it.seekTo(it.currentPosition - t*1000)
+                    val t = loadSettingInt(SKIP_TIME, 5)
+                    it.seekTo(it.currentPosition - t * 1000)
                 }
             }
         }
@@ -182,9 +154,9 @@ class MainActivity : ComponentActivity() {
         // button Mute
         setButtons()
         binding.buttonMute.setOnClickListener {
-            if(getMuteState()){
+            if (getMuteState()) {
                 unMute()
-            }else{
+            } else {
                 mute()
             }
         }
@@ -195,8 +167,8 @@ class MainActivity : ComponentActivity() {
         // timer
         val task = object : TimerTask() {
             override fun run() {
-                mediaPlayer?.let{
-                    if(it.isPlaying){
+                playbackService?.let {
+                    if (it.isPlaying) {
                         val pos = it.currentPosition
                         var sec = pos / 1000
                         var min = sec / 60
@@ -222,39 +194,62 @@ class MainActivity : ComponentActivity() {
                     progress: Int,
                     fromUser: Boolean
                 ) {
-                    if(fromUser){
-                        mediaPlayer?.seekTo(progress)
+                    if (fromUser) {
+                        playbackService?.seekTo(progress)
                     }
                 }
 
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                }
-
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
             }
         )
+    }
 
-        // 設定ロード
-        loadSetting()
+    private fun setupServiceCallbacks() {
+        playbackService?.onPreparedCallback = {
+            prepareCompleted()
+        }
+        playbackService?.onCompletionCallback = {
+            errCount = 0
+            nextPlay()
+        }
+        playbackService?.onErrorCallback = { what, extra ->
+            var ret = false
+            if (errCount < 5) {
+                playbackService?.let {
+                    saveString(SAVE_POS, it.currentPosition.toString())
+                    it.stop()
+                }
+                resume()
+                ret = true
+                errCount += 1
+            }
+            val errorMessage = "Media error: $what ($extra)"
+            showErrorMessage("$errorMessage:$errCount:$ret")
+            ret
+        }
+        playbackService?.onBufferingUpdateCallback = { percent ->
+            if (percent < 100) {
+                binding.progressBar.progress = percent
+                binding.progressBar.visibility = View.VISIBLE
+            } else {
+                binding.progressBar.visibility = View.GONE
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        mediaPlayer?.let{
-            if(it.isPlaying){
-                saveString(SAVE_POS, it.currentPosition.toString())
-                it.stop()
-            }
-            it.release()
-            mediaPlayer = null
+        if (bound) {
+            unbindService(connection)
+            bound = false
         }
         handler.removeCallbacksAndMessages(null)
     }
 
     override fun onPause() {
-        mediaPlayer?.let{
-            if(it.isPlaying){
+        playbackService?.let {
+            if (it.isPlaying) {
                 saveString(SAVE_POS, it.currentPosition.toString())
             }
         }
@@ -263,10 +258,7 @@ class MainActivity : ComponentActivity() {
 
     private fun checkDoNotDisturbPermission() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // 権限チェック
         if (!notificationManager.isNotificationPolicyAccessGranted) {
-            // 権限がない場合、設定画面を開く
             val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
             startActivity(intent)
         }
@@ -283,8 +275,8 @@ class MainActivity : ComponentActivity() {
             .show()
     }
 
-    private fun getMuteState() : Boolean {
-        if(!loadSettingBoolean(USE_DND, false)){
+    private fun getMuteState(): Boolean {
+        if (!loadSettingBoolean(USE_DND, false)) {
             return false
         }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -293,22 +285,21 @@ class MainActivity : ComponentActivity() {
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
         } else {
-            // マナーモード設定の変更処理
             try {
-                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL ){
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
                     isMute = true
                 }
             } catch (e: SecurityException) {
                 showPermissionExplanationDialog()
             }
-            try{
-                if(audioManager.ringerMode!=AudioManager.RINGER_MODE_NORMAL){
+            try {
+                if (audioManager.ringerMode != AudioManager.RINGER_MODE_NORMAL) {
                     isMute = true
                 }
-                if(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != maxVolume){
+                if (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != maxVolume) {
                     isMute = true
                 }
-            }catch(e:Exception){
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
@@ -317,22 +308,20 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun setButtons() {
-        // button forward
-        val setTime = loadSettingInt(SKIP_TIME,5)
+        val setTime = loadSettingInt(SKIP_TIME, 5)
         binding.buttonForward.text = "${setTime}s"
         binding.buttonBackward.text = "${setTime}s"
 
-        // mute button
-        if(!loadSettingBoolean(USE_DND, false)){
+        if (!loadSettingBoolean(USE_DND, false)) {
             binding.buttonMute.setText(R.string.button_mute_disabled)
             binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             binding.buttonMute.isEnabled = false
-        }else{
+        } else {
             binding.buttonMute.isEnabled = true
-            if(getMuteState()){
+            if (getMuteState()) {
                 binding.buttonMute.setText(R.string.button_unmute)
                 binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_up_24)
-            }else{
+            } else {
                 binding.buttonMute.setText(R.string.button_mute)
                 binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             }
@@ -340,7 +329,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun unMute() {
-        if(!loadSettingBoolean(USE_DND, false)){
+        if (!loadSettingBoolean(USE_DND, false)) {
             binding.buttonMute.setText(R.string.button_mute_disabled)
             binding.buttonMute.icon = ContextCompat.getDrawable(this, R.drawable.baseline_volume_off_24)
             return
@@ -350,9 +339,8 @@ class MainActivity : ComponentActivity() {
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
         } else {
-            // マナーモード設定の変更処理
             try {
-                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL ){
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
                     notificationManager.setInterruptionFilter(
                         NotificationManager.INTERRUPTION_FILTER_ALL
                     )
@@ -360,10 +348,10 @@ class MainActivity : ComponentActivity() {
             } catch (e: SecurityException) {
                 showPermissionExplanationDialog()
             }
-            try{
+            try {
                 audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, AudioManager.FLAG_SHOW_UI)
-            }catch(e:Exception){
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
@@ -372,16 +360,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun mute() {
-        if(!loadSettingBoolean(USE_DND, false)){
+        if (!loadSettingBoolean(USE_DND, false)) {
             return
         }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (!notificationManager.isNotificationPolicyAccessGranted) {
             showPermissionExplanationDialog()
         } else {
-            // マナーモード設定の変更処理
             try {
-                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_NONE ){
+                if (notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_NONE) {
                     notificationManager.setInterruptionFilter(
                         NotificationManager.INTERRUPTION_FILTER_NONE
                     )
@@ -389,10 +376,10 @@ class MainActivity : ComponentActivity() {
             } catch (e: SecurityException) {
                 showPermissionExplanationDialog()
             }
-            try{
+            try {
                 audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
                 audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI)
-            }catch(e:Exception){
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
@@ -413,19 +400,17 @@ class MainActivity : ComponentActivity() {
 
         alertDialog?.show()
         handler.postDelayed({
-                alertDialog?.dismiss()
-                alertDialog=null
+            alertDialog?.dismiss()
+            alertDialog = null
         }, 5000)
     }
 
     private fun loadSetting() {
         loadSettingLoadDir()
         val url = loadSetting(SAVE_URL, "")
-        if(url!=""){
+        if (url != "") {
             loadSettingFetchPodcasts(url)
-            // getUrl("http://abehiroshi.la.coocan.jp/menu.htm")
-            // https://feeds.megaphone.fm/TBS4550274867
-        }else{
+        } else {
             binding.loadingSpinner.visibility = View.GONE
             resume()
         }
@@ -433,14 +418,14 @@ class MainActivity : ComponentActivity() {
 
     private fun loadSettingLoadDir() {
         val dir = loadSetting(SAVE_DIRECTORY, "")
-        if(dir!=""){
+        if (dir != "") {
             binding.loadingSpinner.visibility = View.VISIBLE
             val list = listDir(dir)
             updateList(list)
         }
     }
 
-    private fun loadSettingFetchPodcasts(url:String) {
+    private fun loadSettingFetchPodcasts(url: String) {
         lifecycleScope.launch {
             try {
                 val podcasts = withContext(Dispatchers.IO) {
@@ -452,22 +437,19 @@ class MainActivity : ComponentActivity() {
                     list.add(radioData)
                 }
                 updateList(list)
-            }catch (e:Exception){
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
             binding.loadingSpinner.visibility = View.GONE
             resume()
         }
-
     }
 
-    // ネットワークリクエストの実装
-    private suspend fun fetchRssFeed(url:String) : List<PodcastEpisode> {
+    private suspend fun fetchRssFeed(url: String): List<PodcastEpisode> {
         try {
             val client = OkHttpClient()
             val request = Request.Builder()
                 .url(url)
-                //.url("https://feeds.megaphone.fm/TBS4550274867")
                 .build()
 
             val response = withContext(Dispatchers.IO) {
@@ -476,126 +458,89 @@ class MainActivity : ComponentActivity() {
 
             val rssContent = response.body()?.string() ?: ""
             val parser = RssParser()
-            val podcasts = parser.parse(rssContent)
-
-            /*
-            // パースした結果を使用
-            podcasts.forEach { episode ->
-                println("Title: ${episode.title}")
-                println("Description: ${episode.description}")
-                println("Published: ${episode.pubDate}")
-                println("Duration: ${episode.duration}")
-                println("URL: ${episode.url}")
-                println("-------------------")
-            }
-             */
-            return podcasts
-
+            return parser.parse(rssContent)
         } catch (e: Exception) {
             throw e
         }
     }
 
-    // save
     private fun saveString(key: String, value: String) {
         val sharedPref = getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE)
         sharedPref.edit().putString(key, value).apply()
     }
 
-    // load
     private fun loadString(key: String, defValue: String): String {
         val sharedPref = getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE)
-        var value:String? = null
+        var value: String? = null
         try {
-            value = sharedPref.getString(key,defValue)
-        } catch(_: Exception) {
+            value = sharedPref.getString(key, defValue)
+        } catch (_: Exception) {
         }
-        if(value != null){
-            return value
-        }
-        return defValue
+        return value ?: defValue
     }
 
-    // loadSetting
     @Suppress("SameParameterValue")
     private fun loadSetting(key: String, defValue: String): String {
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
-        var value:String? = null
+        var value: String? = null
         try {
-            value = sharedPref.getString(key,defValue)
-        } catch(_: Exception) {
+            value = sharedPref.getString(key, defValue)
+        } catch (_: Exception) {
         }
-        if(value != null){
-            return value
-        }
-        return defValue
+        return value ?: defValue
     }
 
-    // loadSettingBoolean
     @Suppress("SameParameterValue")
     private fun loadSettingBoolean(key: String, defValue: Boolean): Boolean {
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
-        var value:Boolean? = null
+        var value: Boolean? = null
         try {
-            value = sharedPref.getBoolean(key,defValue)
-        } catch(_: Exception) {
+            value = sharedPref.getBoolean(key, defValue)
+        } catch (_: Exception) {
         }
-        if(value != null){
-            return value
-        }
-        return defValue
+        return value ?: defValue
     }
 
-    // loadSettingBoolean
     @Suppress("SameParameterValue")
     private fun loadSettingInt(key: String, defValue: Int): Int {
         val sharedPref = PreferenceManager.getDefaultSharedPreferences(this)
-        var value:Int? = null
+        var value: Int? = null
         try {
-            value = sharedPref.getInt(key,defValue)
-        } catch(_: Exception) {
+            value = sharedPref.getInt(key, defValue)
+        } catch (_: Exception) {
         }
-        if(value != null){
-            return value
-        }
-        return defValue
+        return value ?: defValue
     }
 
     private fun dirFiles(dir: DocumentFile): ArrayList<RadioData> {
         val ary: ArrayList<RadioData> = arrayListOf()
         dir.listFiles().iterator().forEach {
-            if(it.isFile){
-                if( Path(it.name!!).extension == "m4a" ) {
+            if (it.isFile) {
+                if (Path(it.name!!).extension == "m4a") {
                     val dat = RadioData(it)
                     ary.add(dat)
                 }
             }
-            if(it.isDirectory){
+            if (it.isDirectory) {
                 ary.addAll(dirFiles(it))
             }
         }
         return ary
     }
 
-    private fun listDir(pathStr: String):ArrayList<RadioData> {
+    private fun listDir(pathStr: String): ArrayList<RadioData> {
         val uri = Uri.parse(pathStr)
-        /*
-        contentResolver.takePersistableUriPermission(
-            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        )
-         */
         val dir = DocumentFile.fromTreeUri(this, uri)
-        val list = dirFiles(dir!!)
-        return list
+        return dirFiles(dir!!)
     }
 
-    private fun updateList(list: ArrayList<RadioData>){
-        list.sortBy{
+    private fun updateList(list: ArrayList<RadioData>) {
+        list.sortBy {
             it.time()
         }
         val adapter = MyRecyclerViewAdapter(list)
         adapter.setOnCellClickListener(
-            object: MyRecyclerViewAdapter.OnCellClickListener {
+            object : MyRecyclerViewAdapter.OnCellClickListener {
                 override fun onItemClick(radioData: RadioData) {
                     radioPlay(radioData, 0)
                 }
@@ -607,24 +552,21 @@ class MainActivity : ComponentActivity() {
         resumeFile()
     }
 
-    // saveされたファイルを探して選択する
-    private fun resumeFile():Int{
+    private fun resumeFile(): Int {
         var idx = -1
         var idx2 = -1
         val list = radioDataList
         val saveFile = loadString(SAVE_FILE, "")
         val saveTime = loadString(SAVE_TIME, "0000/00/00 00:00:00")
         val p = binding.recyclerview.adapter
-        if(p!=null) {
+        if (p != null) {
             val adapter: MyRecyclerViewAdapter = p as MyRecyclerViewAdapter
             list.forEach {
-                // SAVE_FILEが見つかったらそれ
                 if (it.isSaveFile(saveFile)) {
                     idx = list.indexOf(it)
                     adapter.changeSelection(idx)
                     return idx
                 }
-                // SAVE_FILEが見つからなかったらその次の日付のファイルにする
                 if (idx2 == -1 && it.getTime() > saveTime) {
                     idx2 = list.indexOf(it)
                 }
@@ -636,79 +578,57 @@ class MainActivity : ComponentActivity() {
         return idx2
     }
 
-    private fun resume(){
+    private fun resume(): Int { // wait, return type Int or Unit
         val idx = resumeFile()
-        if(idx!=-1){
+        if (idx != -1) {
             val saveFile = loadString(SAVE_FILE, "")
             var savePos = loadString(SAVE_POS, "0").toInt()
             val radioData = radioDataList[idx]
-            if(radioData.getSaveFile()!=saveFile){
+            if (radioData.getSaveFile() != saveFile) {
                 savePos = 0
             }
             radioPlay(radioData, savePos)
         }
+        return idx
     }
 
-    private fun scrollTo(radioData:RadioData){
+    private fun scrollTo(radioData: RadioData) {
         var idx = -1
-        for((i,elem) in radioDataList.withIndex()){
-            if(radioData.getSaveFile() == elem.getSaveFile()){
+        for ((i, elem) in radioDataList.withIndex()) {
+            if (radioData.getSaveFile() == elem.getSaveFile()) {
                 idx = i
                 break
             }
         }
-        if(idx>=0){
+        if (idx >= 0) {
             binding.recyclerview.smoothScrollToPosition(idx)
         }
     }
 
-    private fun radioPlay(radioData: RadioData, pos:Int) {
+    private fun radioPlay(radioData: RadioData, pos: Int) {
         scrollTo(radioData)
-        mediaPlayer?.let{
-            var resetPlayer = false
-            if(it.isPlaying){
-                resetPlayer = true
-            }else if(currentPath != radioData.getSaveFile()){
-                // pauseだとisPlayingに引っかからない
-                // stop/resetしないままだとplayできないので、
-                // とりあえずクリックした番組が変わったらいったん止める
-                resetPlayer = true
-            }
-            if(resetPlayer){
-                try {
-                    it.stop()
-                    it.reset()
-                }catch(_: Exception) {
-                }
-            }
+        playbackService?.let {
             try {
-                val uri = radioData.uri()
-                val url = radioData.url()
-                if(uri!=null){
-                    it.setDataSource(this, uri)
-                }else if(url!=null){
-                    it.setDataSource(url)
-                }
-                currentPath = radioData.getSaveFile()
-                saveString(SAVE_FILE, currentPath)
-                saveString(SAVE_TIME, radioData.getTime())
-                if (pos == 0) {
-                    binding.seekBar.progress = 0
-                    saveString(SAVE_POS, 0.toString())
-                }
-                binding.progressBar.visibility = View.GONE
-                it.prepareAsync() // -> prepareCompleted
-            }catch(e: Exception){
-                e.printStackTrace()
-                e.message?.let{msg->
-                    showErrorMessage(msg)
-                }
+                it.stop()
+            } catch (_: Exception) {}
+
+            val intent = Intent(this, PlaybackService::class.java)
+            startForegroundService(intent)
+
+            currentPath = radioData.getSaveFile()
+            saveString(SAVE_FILE, currentPath)
+            saveString(SAVE_TIME, radioData.getTime())
+            if (pos == 0) {
+                binding.seekBar.progress = 0
+                saveString(SAVE_POS, "0")
             }
+            binding.progressBar.visibility = View.GONE
+            it.play(radioData.uri(), radioData.url())
         }
     }
 
     private fun prepareCompleted() {
-        mediaPlayer?.let {
+        playbackService?.let {
             binding.seekBar.max = it.duration
             val savePos = loadString(SAVE_POS, "0").toInt()
             if (savePos != 0) {
@@ -721,22 +641,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun nextPlay() {
-        mediaPlayer?.let{
-            it.stop()
-            it.reset()
-        }
-        var idx=-1
-        for((i,elem)in radioDataList.withIndex()){
-            if( elem.getSaveFile()==currentPath ){
+        playbackService?.stop()
+        var idx = -1
+        for ((i, elem) in radioDataList.withIndex()) {
+            if (elem.getSaveFile() == currentPath) {
                 idx = i
                 break
             }
         }
-        if(idx!=-1){
+        if (idx != -1) {
             idx += 1
-            if(radioDataList.size>idx){
+            if (radioDataList.size > idx) {
                 radioPlay(radioDataList[idx], 0)
-                val adapter:MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
+                val adapter: MyRecyclerViewAdapter = binding.recyclerview.adapter as MyRecyclerViewAdapter
                 adapter.changeSelection(idx)
             }
         }
