@@ -240,6 +240,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        playbackService?.apply {
+            onPreparedCallback = null
+            onCompletionCallback = null
+            onErrorCallback = null
+            onBufferingUpdateCallback = null
+        }
         if (bound) {
             unbindService(connection)
             bound = false
@@ -406,40 +412,34 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadSetting() {
-        loadSettingLoadDir()
-        val url = loadSetting(SAVE_URL, "")
-        if (url != "") {
-            loadSettingFetchPodcasts(url)
-        } else {
-            binding.loadingSpinner.visibility = View.GONE
-            resume()
-        }
-    }
-
-    private fun loadSettingLoadDir() {
-        val dir = loadSetting(SAVE_DIRECTORY, "")
-        if (dir != "") {
-            binding.loadingSpinner.visibility = View.VISIBLE
-            val list = listDir(dir)
-            updateList(list)
-        }
-    }
-
-    private fun loadSettingFetchPodcasts(url: String) {
         lifecycleScope.launch {
-            try {
-                val podcasts = withContext(Dispatchers.IO) {
-                    fetchRssFeed(url)
-                }
-                val list = radioDataList
-                for (item in podcasts) {
-                    val radioData = RadioData(item)
-                    list.add(radioData)
+            binding.loadingSpinner.visibility = View.VISIBLE
+
+            val dir = loadSetting(SAVE_DIRECTORY, "")
+            if (dir != "") {
+                val list = withContext(Dispatchers.IO) {
+                    listDir(dir)
                 }
                 updateList(list)
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+
+            val url = loadSetting(SAVE_URL, "")
+            if (url != "") {
+                try {
+                    val podcasts = withContext(Dispatchers.IO) {
+                        fetchRssFeed(url)
+                    }
+                    val list = radioDataList
+                    for (item in podcasts) {
+                        val radioData = RadioData(item)
+                        list.add(radioData)
+                    }
+                    updateList(list)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             binding.loadingSpinner.visibility = View.GONE
             resume()
         }
@@ -531,7 +531,7 @@ class MainActivity : ComponentActivity() {
     private fun listDir(pathStr: String): ArrayList<RadioData> {
         val uri = Uri.parse(pathStr)
         val dir = DocumentFile.fromTreeUri(this, uri)
-        return dirFiles(dir!!)
+        return dir?.let { dirFiles(it) } ?: arrayListOf()
     }
 
     private fun updateList(list: ArrayList<RadioData>) {

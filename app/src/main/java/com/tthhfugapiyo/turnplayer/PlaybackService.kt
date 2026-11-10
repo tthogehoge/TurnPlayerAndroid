@@ -167,4 +167,10 @@ class PlaybackService : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.O
             e.printStackTrace()
         }
     }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        stop()
+        stopSelf()
+    }
 }
